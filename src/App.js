@@ -31,10 +31,6 @@ function App() {
     });
   }, []);
 
-  useEffect(() => {
-    createModule();
-  }, []);
-
   return (
     <div className="App">
       <header className="App-header">
