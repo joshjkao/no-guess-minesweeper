@@ -1,7 +1,7 @@
-import logo from './logo.svg';
 import './App.css';
 import MineSweeperBoard from './MineSweeperBoard';
 import { useEffect, useState } from 'react';
+import createModule from './bindings.js';
 
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR3PhLLS9ZxnmJQcM9QnRnDMpZZSiIipjD5wkLK1AGK_lr-kE0_4Dw6jkIANGufcJnEesuyHmQh_ip2/pub?gid=0&single=true&output=csv';
 
@@ -30,6 +30,10 @@ function App() {
       setSeeds(jsondata);
       setSeed(jsondata[index]);
     });
+  }, []);
+
+  useEffect(() => {
+    createModule();
   }, []);
 
   return (
