@@ -21,15 +21,32 @@ function Xorshift32(seed) {
   }
 }
 
+function WhichColor(state, value, isMine) {
+  var colorarr = ["lightgray", "blue", "green", "red", "purple", "white", "white", "white", "white"];
+  if (state === 0) return colorarr[0];
+  else if (state === 2) return colorarr[0];
+  else if (isMine) return colorarr[0];
+  else return colorarr[value];
+}
+
+function WhichChar(state, value, isMine, isInit) {
+  if (state === 0 && isInit) return '*';
+  else if (state === 0) return '.';
+  else if (state === 2) return '🏴‍☠️';
+  else if (isMine) return '💣';
+  else if (value === 0) return '';
+  else return value;
+}
+
 function MineSweeperTile({states, value, isMine, i, j, dig, flag, setHovered, isInit}) {
   return (
     <div style={{
       width: '30px',
       height: '30px',
-      border: '1px solid black',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'center'
+      justifyContent: 'center',
+      color: WhichColor(states[i][j], value, isMine)
     }} 
     onClick={() => dig(i, j)}
     tabIndex={0}
@@ -37,7 +54,7 @@ function MineSweeperTile({states, value, isMine, i, j, dig, flag, setHovered, is
     onMouseEnter={() => { setHovered([i, j]);}}
     onMouseLeave={() => { setHovered([i, j]); }}
     >
-      {states[i][j] === 0 ? (isInit ? "*" : ".") : states[i][j] === 2 ? "X" : isMine ? "M" : value === 0 ? "" : value}
+      {WhichChar(states[i][j], value, isMine, isInit)}
     </div>
   );
 }
@@ -126,12 +143,22 @@ function MineSweeperBoard({M, N, MINES, seed}) {
     if (flagCount === values[i][j]) {
       neighbors(M, N, i, j).forEach(([ni, nj]) => {
         if (states[ni][nj] === 0) {
-          console.log("digall", ni, nj);
           if (mines[ni][nj] === 1) setGameState(-1);
           dig(ni, nj);
         }
       });
     }
+  }
+
+  const revealBoard = () => {
+    for (let i = 0; i < M; i++) {
+      for (let j = 0; j < N; j++) {
+        if (mines[i][j] === 1 && states[i][j] !== 2) {
+          flag(i, j);
+        }
+      }
+    }
+    return;
   }
 
   const checkGameState = () => {
@@ -143,6 +170,7 @@ function MineSweeperBoard({M, N, MINES, seed}) {
         }
       }
     }
+    revealBoard();
     setGameState(0);
     return;
   }
@@ -153,10 +181,10 @@ function MineSweeperBoard({M, N, MINES, seed}) {
     >
       <div>
         {gameState === null ? "loading" : 
-        gameState === 2 ? "ready" :
-        gameState === 1 ? "incomplete" : 
-        gameState === 0 ? "win" : 
-        gameState === -1 ? "lose" : ""}
+        gameState === 2 ? "🙂" :
+        gameState === 1 ? "🙂" : 
+        gameState === 0 ? "😎" : 
+        gameState === -1 ? "💀" : ""}
       </div>
       <div>
         {mineCounter}
