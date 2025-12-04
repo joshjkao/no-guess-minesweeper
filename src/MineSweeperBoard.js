@@ -1,15 +1,6 @@
 import { useEffect, useState } from 'react';
 import './MineSweeper.css'
 
-function LCG(seed) {
-  let state = seed >>> 0; // Ensure unsigned 32-bit
-
-  return function(N=4294967296) {
-    state = (1664525 * state + 1013904223) >>> 0;
-    return state % N;
-  }
-}
-
 function Xorshift32(seed) {
   let state = seed >>> 0;
 
@@ -29,16 +20,15 @@ function WhichColor(state, value, isMine) {
   else return colorarr[value];
 }
 
-function WhichChar(state, value, isMine, isInit) {
-  if (state === 0 && isInit) return '*';
-  else if (state === 0) return '.';
+function WhichChar(state, value, isMine) {
+  if (state === 0) return '.';
   else if (state === 2) return '🏴‍☠️';
   else if (isMine) return '💣';
   else if (value === 0) return '';
   else return value;
 }
 
-function MineSweeperTile({states, value, isMine, i, j, dig, flag, setHovered, isInit}) {
+function MineSweeperTile({states, value, isMine, i, j, dig, flag, setHovered}) {
   return (
     <div style={{
       width: '30px',
@@ -54,19 +44,20 @@ function MineSweeperTile({states, value, isMine, i, j, dig, flag, setHovered, is
     onMouseEnter={() => { setHovered([i, j]);}}
     onMouseLeave={() => { setHovered([i, j]); }}
     >
-      {WhichChar(states[i][j], value, isMine, isInit)}
+      {WhichChar(states[i][j], value, isMine)}
     </div>
   );
 }
 
-function MineSweeperBoard({M, N, MINES, seed}) {
-
+function MineSweeperBoard({initState}) {
+  const [M, setM] = useState(0);
+  const [N, setN] = useState(0);
+  const [MINES, setMINES] = useState(0);
   const [states, setStates] = useState([[0]]);
   const [mines, setMines] = useState([[0]]);
   const [values, setValues] = useState([[0]]);
   const [hovered, setHovered] = useState(null);
-  const [initialMove, setInitialMove] = useState([0,0]);
-  const [gameState, setGameState] = useState(null);
+  const [gameState, setGameState] = useState(2);
   const [mineCounter, setMineCounter] = useState(MINES);
 
   const handleKeyDown = (e) => {
@@ -79,23 +70,21 @@ function MineSweeperBoard({M, N, MINES, seed}) {
   };
 
   useEffect(() => {
-    const [theStates, theValues, theMines, initialMove] = initializeBoard(M, N, MINES, seed);
+    const [M, N, MINES, theStates, theValues, theMines] = initializeBoard(initState);
+    setM(M);
+    setN(N);
+    setMINES(MINES);
     setStates(theStates);
-    setMines(theMines);
     setValues(theValues);
-    setInitialMove(initialMove);
+    setMines(theMines);
+    setMineCounter(MINES);
     setGameState(2);
   }, []);
 
   const dig = (i, j) => {
     if (states[i][j] !== 0) return;
-    if (gameState !== 1) {
-      if (i === initialMove[0] && j === initialMove[1]) {
-        setGameState(1);
-        digInitial(i, j);
-        return;
-      }
-      else return;
+    if (gameState === 2) {
+      setGameState(1);
     }
     const statesCopy = [...states];
     statesCopy[i][j] = 1;
@@ -110,19 +99,9 @@ function MineSweeperBoard({M, N, MINES, seed}) {
     checkGameState();
   };
 
-  const digInitial = (i, j) => {
-    if (states[i][j] !== 0) return;
-    const statesCopy = [...states];
-    statesCopy[i][j] = 1;
-    setStates(statesCopy);
-    if (values[i][j] === 0) {
-      neighbors(M, N, i, j).forEach(([ni, nj]) => { digInitial(ni, nj); });
-    }
-  };
-
   const flag = (i, j) => {
-    if (gameState !== 1) return;
-    console.log("flag", i, j);
+    // console.log("flag", i, j);
+    if (gameState === 0) return;
     if (states[i][j] === 1) return;
     const statesCopy = [...states];
     const currMineCounter = mineCounter;
@@ -176,12 +155,12 @@ function MineSweeperBoard({M, N, MINES, seed}) {
   }
 
   return (
-    <div style={{ display: 'inline-block' }}
+    <div autoFocus style={{ display: 'inline-block' }}
       onKeyDown={(e) => handleKeyDown(e)}
     >
       <div>
         {gameState === null ? "loading" : 
-        gameState === 2 ? "🙂" :
+        gameState === 2 ? "🤨" :
         gameState === 1 ? "🙂" : 
         gameState === 0 ? "😎" : 
         gameState === -1 ? "💀" : ""}
@@ -202,7 +181,6 @@ function MineSweeperBoard({M, N, MINES, seed}) {
               dig={dig}
               flag={flag}
               setHovered={setHovered}
-              isInit={rowIndex === initialMove[0] && colIndex === initialMove[1]}
             />
           ))}
         </div>
@@ -228,41 +206,77 @@ function neighbors(M, N, i, j) {
   return ret;
 }
 
-function initializeBoard(M, N, MINES, seed) {
-  console.log("init", seed);
-  const mines = Array.from({ length: M }, () =>
-    Array.from({ length: N }, () => 0)
-  );
+function initializeBoard(initState) {
+  var states = initState.states;
+  var mines = initState.mines;
+  var M = mines.length;
+  var N = mines[0].length;
+
   const values = Array.from({ length: M }, () =>
     Array.from({ length: N }, () => 0)
   );
-  const states = Array.from({ length: M }, () =>
-    Array.from({ length: N }, () => 0)
-  );
-  // const rand = LCG(seed);
-  const rand = Xorshift32(seed);
 
-  let placedMines = 0;
-  while (placedMines < MINES) {
-    const i = rand(M);
-    const j = rand(N);
-    if (mines[i][j] !== 1) {
-      mines[i][j] = 1;
-      placedMines++;
+  var nMines = 0;
+  for (let i = 0; i < M; ++i) {
+    for (let j = 0; j < N; ++j) {
+      if (mines[i][j] === 1) nMines++;
     }
   }
+  var coveredTiles = M*N-nMines;
+  var remainingMines = nMines;
 
-  let zeroVals = [];
-  for (let i = 0; i < M; i++) {
-    for (let j = 0; j < N; j++) {
+  for (let i = 0; i < M; ++i) {
+    for (let j = 0; j < N; ++j) {
+      if (states[i][j] === 1) {
+        --coveredTiles;
+      } else if (states[i][j] === 2) {
+        --remainingMines;
+      }
+    }
+  }
+  for (let i = 0; i < M; ++i) {
+    for (let j = 0; j < N; ++j) {
       neighbors(M, N, i, j).forEach(([ni, nj]) => { values[i][j] += mines[ni][nj]; });
-      if (values[i][j] === 0 && mines[i][j] === 0) zeroVals.push([i, j]);
     }
   }
-  if (zeroVals.length === 0) return;
-  const initMove = zeroVals[rand(zeroVals.length)];
 
-  return [states, values, mines, initMove];
+  return [M, N, nMines, states, values, mines];
 }
+
+// function initializeBoard(M, N, MINES, seed) {
+//   console.log("init", seed);
+//   const mines = Array.from({ length: M }, () =>
+//     Array.from({ length: N }, () => 0)
+//   );
+//   const values = Array.from({ length: M }, () =>
+//     Array.from({ length: N }, () => 0)
+//   );
+//   const states = Array.from({ length: M }, () =>
+//     Array.from({ length: N }, () => 0)
+//   );
+//   const rand = Xorshift32(seed);
+
+//   let placedMines = 0;
+//   while (placedMines < MINES) {
+//     const i = rand(M);
+//     const j = rand(N);
+//     if (mines[i][j] !== 1) {
+//       mines[i][j] = 1;
+//       placedMines++;
+//     }
+//   }
+
+//   let zeroVals = [];
+//   for (let i = 0; i < M; i++) {
+//     for (let j = 0; j < N; j++) {
+//       neighbors(M, N, i, j).forEach(([ni, nj]) => { values[i][j] += mines[ni][nj]; });
+//       if (values[i][j] === 0 && mines[i][j] === 0) zeroVals.push([i, j]);
+//     }
+//   }
+//   if (zeroVals.length === 0) return;
+//   const initMove = zeroVals[rand(zeroVals.length)];
+
+//   return [states, values, mines, initMove];
+// }
 
 export default MineSweeperBoard;
